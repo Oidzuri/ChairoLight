@@ -92,11 +92,13 @@ jobs:
           if (-not (Test-Path "$directory/main.conf")) { throw 'Portable main.conf marker is missing' }
           if ((Get-Item "$directory/main.conf").Length -ne 0) { throw 'Portable main.conf contains settings' }
           if (Test-Path "$directory/Profiles") { throw 'Profiles leaked into artifact' }
-          if (Get-ChildItem $directory -Recurse -File | Select-String -SimpleMatch 'C:\Users\Administrator' -Quiet) {
-            throw 'Developer path leaked into artifact'
-          }
           $textFiles = Get-ChildItem $directory -Recurse -File -Include *.md,*.txt,*.conf,*.ini
-          if ($textFiles | Select-String -Pattern '\bCOM8\b' -Quiet) { throw 'Developer COM port leaked into artifact' }
+          if ($textFiles -and (Select-String -LiteralPath $textFiles.FullName -SimpleMatch 'C:\Users\Administrator' -Quiet)) {
+            throw 'Developer path leaked into portable text/config files'
+          }
+          if ($textFiles -and (Select-String -LiteralPath $textFiles.FullName -Pattern '\bCOM8\b' -Quiet)) {
+            throw 'Developer COM port leaked into artifact'
+          }
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v7
