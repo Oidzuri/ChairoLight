@@ -67,9 +67,7 @@ void LightpackApiTest::initTestCase()
 
 	m_little = new SettingsWindowMockup(this);
 
-	connect(m_little, SIGNAL(enableApiServer(bool)), m_apiServer, SLOT(enableApiServer(bool)), Qt::DirectConnection);
 	connect(m_little, SIGNAL(updateApiKey(QString)), m_apiServer, SLOT(updateApiKey(QString)), Qt::DirectConnection);
-	connect(m_little, SIGNAL(updateApiPort(int)), m_apiServer, SLOT(updateApiPort(int)), Qt::DirectConnection);
 
 	connect(m_interfaceApi, SIGNAL(requestBacklightStatus()), m_little, SLOT(requestBacklightStatus()), Qt::QueuedConnection);
 	connect(m_little, SIGNAL(resultBacklightStatus(Backlight::Status)), m_interfaceApi, SLOT(resultBacklightStatus(Backlight::Status)));
@@ -747,9 +745,7 @@ bool LightpackApiTest::checkVersion(QTcpSocket * socket)
 
 	QString result = readResult(socket);
 
-	QString versionTests = "Lightpack API v" VERSION_API_TESTS " (type \"help\" for more info)";
-
-	return (m_sockReadLineOk && result.trimmed() == versionTests);
+	return m_sockReadLineOk && result.trimmed() == QString::fromLatin1(ApiServer::ApiVersion).trimmed();
 }
 
 bool LightpackApiTest::lock(QTcpSocket * socket)

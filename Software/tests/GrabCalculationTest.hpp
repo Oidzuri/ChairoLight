@@ -40,5 +40,8 @@ public:
 	
 private Q_SLOTS:
 	void testCase1();
+	void perceptualGrayStaysNeutral();
+	void perceptualColorKeepsSmallHighlights();
+	void dxgiBgraMemoryDoesNotTreatAlphaAsBlue();
 };
 

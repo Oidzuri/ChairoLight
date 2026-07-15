@@ -40,7 +40,10 @@
 #define _GRABMODE_ENUM(_name_)		::Grab::GrabberType##_name_
 #define _GRABMODE_STR(_name_)		#_name_
 
-#ifdef DDUPL_GRAB_SUPPORT
+#ifdef WGC_GRAB_SUPPORT
+#	define GRABMODE_DEFAULT			_GRABMODE_ENUM(Wgc)
+#	define GRABMODE_DEFAULT_STR		_GRABMODE_STR(Wgc)
+#elif defined(DDUPL_GRAB_SUPPORT)
 #	define GRABMODE_DEFAULT			_GRABMODE_ENUM(DDupl)
 #	define GRABMODE_DEFAULT_STR		_GRABMODE_STR(DDupl)
 #elif defined(WINAPI_GRAB_SUPPORT)

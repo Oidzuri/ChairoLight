@@ -3,7 +3,7 @@
 #include "GrabCalculationTest.hpp"
 #include "lightpackmathtest.hpp"
 #include "AppVersionTest.hpp"
-#ifdef Q_OS_WIN
+#ifdef HOOKS_TEST_AVAILABLE
 #include "HooksTest.h"
 #endif
 #include "LightpackCommandLineParserTest.hpp"
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
 	tests.append(new GrabCalculationTest());
 
-#ifdef Q_OS_WIN
+#ifdef HOOKS_TEST_AVAILABLE
 	tests.append(new HooksTest());
 #endif
 

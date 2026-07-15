@@ -191,6 +191,9 @@ static const QString Grabber = QStringLiteral("Grab/Grabber");
 static const QString IsAvgColorsEnabled = QStringLiteral("Grab/IsAvgColorsEnabled");
 static const QString IsSendDataOnlyIfColorsChanges = QStringLiteral("Grab/IsSendDataOnlyIfColorsChanges");
 static const QString Slowdown = QStringLiteral("Grab/Slowdown");
+static const QString ColorProcessingMode = QStringLiteral("Grab/ColorProcessingMode");
+static const QString ScenePreset = QStringLiteral("Grab/ScenePreset");
+static const QString SmartCalibrationEnabled = QStringLiteral("Grab/SmartCalibrationEnabled");
 static const QString LuminosityThreshold = QStringLiteral("Grab/LuminosityThreshold");
 static const QString OverBrighten = QStringLiteral("Grab/OverBrighten");
 static const QString IsMinimumLuminosityEnabled = QStringLiteral("Grab/IsMinimumLuminosityEnabled");
@@ -266,6 +269,7 @@ static const QString D3D9 = QStringLiteral("D3D9");
 static const QString MacCoreGraphics = QStringLiteral("MacCoreGraphics");
 static const QString MacAVFoundation = QStringLiteral("MacAVFoundation");
 static const QString DDupl = QStringLiteral("DDupl");
+static const QString Wgc = QStringLiteral("Wgc");
 }
 
 } /*Value*/
@@ -1325,6 +1329,44 @@ void Settings::setGrabAvgColorsEnabled(bool isEnabled)
 	emit m_this->grabAvgColorsEnabledChanged(isEnabled);
 }
 
+int Settings::getGrabColorProcessingMode()
+{
+	return getValidGrabColorProcessingMode(value(Profile::Key::Grab::ColorProcessingMode).toInt());
+}
+
+void Settings::setGrabColorProcessingMode(int value)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO;
+	value = getValidGrabColorProcessingMode(value);
+	setValue(Profile::Key::Grab::ColorProcessingMode, value);
+	emit m_this->grabColorProcessingModeChanged(value);
+}
+
+int Settings::getGrabScenePreset()
+{
+	return getValidGrabScenePreset(value(Profile::Key::Grab::ScenePreset).toInt());
+}
+
+void Settings::setGrabScenePreset(int value)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO;
+	value = getValidGrabScenePreset(value);
+	setValue(Profile::Key::Grab::ScenePreset, value);
+	emit m_this->grabScenePresetChanged(value);
+}
+
+bool Settings::isGrabSmartCalibrationEnabled()
+{
+	return value(Profile::Key::Grab::SmartCalibrationEnabled).toBool();
+}
+
+void Settings::setGrabSmartCalibrationEnabled(bool value)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO;
+	setValue(Profile::Key::Grab::SmartCalibrationEnabled, value);
+	emit m_this->grabSmartCalibrationChanged(value);
+}
+
 int Settings::getGrabOverBrighten()
 {
 	return getValidGrabOverBrighten(value(Profile::Key::Grab::OverBrighten).toInt());
@@ -1537,6 +1579,11 @@ Grab::GrabberType Settings::getGrabberType()
 		return Grab::GrabberTypeDDupl;
 #endif
 
+#ifdef WGC_GRAB_SUPPORT
+	if (strGrabber == Profile::Value::GrabberType::Wgc)
+		return Grab::GrabberTypeWgc;
+#endif
+
 #ifdef D3D9_GRAB_SUPPORT
 	if (strGrabber == Profile::Value::GrabberType::D3D9)
 		return Grab::GrabberTypeD3D9;
@@ -1591,6 +1638,12 @@ void Settings::setGrabberType(Grab::GrabberType grabberType)
 		strGrabber = Profile::Value::GrabberType::DDupl;
 		break;
 
+#endif
+
+#ifdef WGC_GRAB_SUPPORT
+	case Grab::GrabberTypeWgc:
+		strGrabber = Profile::Value::GrabberType::Wgc;
+		break;
 #endif
 
 #ifdef D3D9_GRAB_SUPPORT
@@ -1982,6 +2035,24 @@ int Settings::getValidGrabSlowdown(int value)
 	return value;
 }
 
+int Settings::getValidGrabColorProcessingMode(int value)
+{
+	if (value < static_cast<int>(Grab::Calculations::ColorProcessingModeLegacy)
+		|| value > static_cast<int>(Grab::Calculations::ColorProcessingModeCinema)) {
+		return static_cast<int>(Grab::Calculations::ColorProcessingModeBalanced);
+	}
+	return value;
+}
+
+int Settings::getValidGrabScenePreset(int value)
+{
+	if (value < static_cast<int>(Grab::Calculations::ScenePresetAuto)
+		|| value > static_cast<int>(Grab::Calculations::ScenePresetCinema)) {
+		return static_cast<int>(Grab::Calculations::ScenePresetAuto);
+	}
+	return value;
+}
+
 int Settings::getValidMoodLampSpeed(int value)
 {
 	if (value < Profile::MoodLamp::SpeedMin)
@@ -2102,6 +2173,9 @@ void Settings::initCurrentProfile(bool isResetDefault)
 	// [Grab]
 	setNewOption(Profile::Key::Grab::Grabber,						Profile::Grab::GrabberDefaultString, isResetDefault);
 	setNewOption(Profile::Key::Grab::IsAvgColorsEnabled,			Profile::Grab::IsAvgColorsEnabledDefault, isResetDefault);
+	setNewOption(Profile::Key::Grab::ColorProcessingMode,			static_cast<int>(Grab::Calculations::ColorProcessingModeBalanced), isResetDefault);
+	setNewOption(Profile::Key::Grab::ScenePreset,					static_cast<int>(Grab::Calculations::ScenePresetAuto), isResetDefault);
+	setNewOption(Profile::Key::Grab::SmartCalibrationEnabled,		true, isResetDefault);
 	setNewOption(Profile::Key::Grab::OverBrighten,					Profile::Grab::OverBrightenDefault, isResetDefault);
 	setNewOption(Profile::Key::Grab::IsSendDataOnlyIfColorsChanges, Profile::Grab::IsSendDataOnlyIfColorsChangesDefault, isResetDefault);
 	setNewOption(Profile::Key::Grab::Slowdown,						Profile::Grab::SlowdownDefault, isResetDefault);

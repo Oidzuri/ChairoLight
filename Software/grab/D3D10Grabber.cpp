@@ -25,6 +25,11 @@
 
 #include "D3D10Grabber.hpp"
 
+#if defined(__MINGW32__)
+#undef Q_FUNC_INFO
+#define Q_FUNC_INFO ""
+#endif
+
 #ifdef D3D10_GRAB_SUPPORT
 
 #include <winsock2.h>

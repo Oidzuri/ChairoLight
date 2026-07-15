@@ -37,6 +37,7 @@ public:
 	bool isSetVersion() const;
 	bool isSetHelp() const;
 	bool isSetNoGUI() const;
+	bool isSetStartInTray() const;
 	bool isSetWizard() const;
 	bool isSetBacklightOff() const;
 	bool isSetBacklightOn() const;
@@ -63,6 +64,8 @@ private:
 	// Options
 	// --nogui
 	const QCommandLineOption m_noGUIOption;
+	// --start-in-tray
+	const QCommandLineOption m_startInTrayOption;
 	// --wizard
 	const QCommandLineOption m_wizardOption;
 	// --off

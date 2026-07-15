@@ -79,7 +79,10 @@ SOURCES += \
     ../src/UpdatesProcessor.cpp \
     LightpackCommandLineParserTest.cpp
 
-win32{
+# Legacy hook tests rely on 32-bit MSVC pointer assumptions and are unrelated
+# to the grab/color pipeline. Keep them for the toolchain they were written for.
+win32:msvc {
+    DEFINES += HOOKS_TEST_AVAILABLE
     HEADERS += \
         HooksTest.h \
         ../hooks/ProxyFuncJmp.hpp \

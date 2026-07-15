@@ -152,8 +152,8 @@ void LightpackApplication::determineConfigDir(QString overrideDir)
 
 void LightpackApplication::initializeAll()
 {
-	setApplicationName(QStringLiteral("Prismatik"));
-	setOrganizationName(QStringLiteral("Woodenshark LLC"));
+	setApplicationName(QStringLiteral("ChairoLight"));
+	setOrganizationName(QStringLiteral("Oidzuri"));
 	setApplicationVersion(QStringLiteral(VERSION_STR));
 	setQuitOnLastWindowClosed(false);
 
@@ -177,8 +177,13 @@ void LightpackApplication::initializeAll()
 
 		m_settingsWindow = new SettingsWindow();
 		if (trayAvailable) {
-			m_settingsWindow->setVisible(false); /* Load to tray */
 			m_settingsWindow->createTrayIcon();
+			const bool startInTray = arguments().contains(QStringLiteral("--start-in-tray"));
+			m_settingsWindow->setVisible(!startInTray);
+			if (!startInTray) {
+				m_settingsWindow->raise();
+				m_settingsWindow->activateWindow();
+			}
 		}
 		else
 			m_settingsWindow->setVisible(true);
@@ -568,7 +573,7 @@ void LightpackApplication::processCommandLineArguments()
 void LightpackApplication::outputMessage(const QString& message) const
 {
 #ifdef Q_OS_WIN
-	QMessageBox::information(NULL, QStringLiteral("Prismatik"), message, QMessageBox::Ok);
+	QMessageBox::information(NULL, QStringLiteral("ChairoLight"), message, QMessageBox::Ok);
 #else
 	fprintf(stderr, "%s\n", message.toStdString().c_str());
 #endif
@@ -614,7 +619,7 @@ bool LightpackApplication::checkSystemTrayAvailability() const
 
 	if (QSystemTrayIcon::isSystemTrayAvailable() == false)
 	{
-		QMessageBox::critical(0, QStringLiteral("Prismatik"), QStringLiteral("I couldn't detect any system tray on this system."));
+		QMessageBox::critical(0, QStringLiteral("ChairoLight"), QStringLiteral("I couldn't detect any system tray on this system."));
 		DEBUG_LOW_LEVEL << Q_FUNC_INFO << "Systray couldn't be detected, running in trayless mode";
 		return false;
 	}
@@ -771,6 +776,9 @@ void LightpackApplication::initGrabManager()
 	connect(settings(), &Settings::grabberTypeChanged,	m_grabManager, &GrabManager::onGrabberTypeChanged,	Qt::QueuedConnection);
 	connect(settings(), &Settings::grabSlowdownChanged,						m_grabManager, &GrabManager::onGrabSlowdownChanged,						Qt::QueuedConnection);
 	connect(settings(), &Settings::grabAvgColorsEnabledChanged,				m_grabManager, &GrabManager::onGrabAvgColorsEnabledChanged,				Qt::QueuedConnection);
+	connect(settings(), &Settings::grabColorProcessingModeChanged,			m_grabManager, &GrabManager::onGrabColorProcessingModeChanged,			Qt::QueuedConnection);
+	connect(settings(), &Settings::grabScenePresetChanged,					m_grabManager, &GrabManager::onGrabScenePresetChanged,					Qt::QueuedConnection);
+	connect(settings(), &Settings::grabSmartCalibrationChanged,				m_grabManager, &GrabManager::onGrabSmartCalibrationChanged,				Qt::QueuedConnection);
 	connect(settings(), &Settings::grabOverBrightenChanged,					m_grabManager, &GrabManager::onGrabOverBrightenChanged,					Qt::QueuedConnection);
 	connect(settings(), &Settings::grabApplyBlueLightReductionChanged,				m_grabManager, &GrabManager::onGrabApplyBlueLightReductionChanged,				Qt::QueuedConnection);
 	connect(settings(), &Settings::grabApplyColorTemperatureChanged,         m_grabManager, &GrabManager::onGrabApplyColorTemperatureChanged,           Qt::QueuedConnection);

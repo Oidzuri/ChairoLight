@@ -33,6 +33,7 @@
 #include "GrabWidget.hpp"
 #include "GrabberContext.hpp"
 #include "TimeEvaluations.hpp"
+#include "WgcGrabber.hpp"
 #include "WinAPIGrabber.hpp"
 #include "DDuplGrabber.hpp"
 #include "X11Grabber.hpp"
@@ -272,6 +273,27 @@ void GrabManager::onGrabAvgColorsEnabledChanged(bool state)
 	m_avgColorsOnAllLeds = state;
 }
 
+void GrabManager::onGrabColorProcessingModeChanged(int value)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO << value;
+	m_colorProcessingMode = static_cast<Grab::Calculations::ColorProcessingMode>(value);
+	m_grabberContext->colorProcessingMode = m_colorProcessingMode;
+}
+
+void GrabManager::onGrabScenePresetChanged(int value)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO << value;
+	m_scenePreset = static_cast<Grab::Calculations::ScenePreset>(value);
+	m_grabberContext->scenePreset = m_scenePreset;
+}
+
+void GrabManager::onGrabSmartCalibrationChanged(bool state)
+{
+	DEBUG_LOW_LEVEL << Q_FUNC_INFO << state;
+	m_smartCalibrationEnabled = state;
+	m_grabberContext->smartCalibrationEnabled = state;
+}
+
 void GrabManager::onGrabOverBrightenChanged(int value) {
 	DEBUG_LOW_LEVEL << Q_FUNC_INFO << value;
 	m_overBrighten = value;
@@ -359,11 +381,17 @@ void GrabManager::settingsProfileChanged(const QString &profileName)
 
 	m_isSendDataOnlyIfColorsChanged = Settings::isSendDataOnlyIfColorsChanges();
 	m_avgColorsOnAllLeds = Settings::isGrabAvgColorsEnabled();
+	m_colorProcessingMode = static_cast<Grab::Calculations::ColorProcessingMode>(Settings::getGrabColorProcessingMode());
+	m_scenePreset = static_cast<Grab::Calculations::ScenePreset>(Settings::getGrabScenePreset());
+	m_smartCalibrationEnabled = Settings::isGrabSmartCalibrationEnabled();
 	m_overBrighten = Settings::getGrabOverBrighten();
 	m_isApplyBlueLightReduction = Settings::isGrabApplyBlueLightReductionEnabled();
 	m_isApplyColorTemperature = Settings::isGrabApplyColorTemperatureEnabled();
 	m_colorTemperature = Settings::getGrabColorTemperature();
 	m_gamma = Settings::getGrabGamma();
+	m_grabberContext->colorProcessingMode = m_colorProcessingMode;
+	m_grabberContext->scenePreset = m_scenePreset;
+	m_grabberContext->smartCalibrationEnabled = m_smartCalibrationEnabled;
 
 	setNumberOfLeds(Settings::getNumberOfLeds(Settings::getConnectedDevice()));
 }
@@ -627,9 +655,16 @@ void GrabManager::initGrabbers()
 
 	m_grabberContext->grabWidgets = &m_ledWidgets;
 	m_grabberContext->grabResult = &m_colorsNew;
+	m_grabberContext->colorProcessingMode = static_cast<Grab::Calculations::ColorProcessingMode>(Settings::getGrabColorProcessingMode());
+	m_grabberContext->scenePreset = static_cast<Grab::Calculations::ScenePreset>(Settings::getGrabScenePreset());
+	m_grabberContext->smartCalibrationEnabled = Settings::isGrabSmartCalibrationEnabled();
 
 	for (int i = 0; i < Grab::GrabbersCount; i++)
 		m_grabbers.append(NULL);
+
+#ifdef WGC_GRAB_SUPPORT
+	m_grabbers[Grab::GrabberTypeWgc] = initGrabber(new WgcGrabber(NULL, m_grabberContext));
+#endif
 
 #ifdef WINAPI_GRAB_SUPPORT
 	m_grabbers[Grab::GrabberTypeWinAPI] = initGrabber(new WinAPIGrabber(NULL, m_grabberContext));

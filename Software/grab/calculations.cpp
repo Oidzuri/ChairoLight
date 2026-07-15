@@ -25,6 +25,8 @@
 
 #include "calculations.hpp"
 #include <stdint.h>
+#include <algorithm>
+#include <cmath>
 #ifdef __SSE4_1__
 #include <immintrin.h>
 #endif // ifdef __SSE4_1__
@@ -41,6 +43,37 @@ namespace {
 
 	struct ColorValue {
 		int r, g, b;
+	};
+
+	struct PerceptualTuning {
+		double meanWeight;
+		double rmsWeight;
+		double vividScale;
+		double vividLimit;
+		double highlightKnee;
+		double highlightStrength;
+		double warmProtection;
+	};
+
+	struct RegionStats {
+		double meanR;
+		double meanG;
+		double meanB;
+		double rmsR;
+		double rmsG;
+		double rmsB;
+		double meanLuminance;
+		double luminanceContrast;
+		double saturation;
+		double warmBias;
+		double brightRatio;
+		double darkRatio;
+		double neutralRatio;
+		double colorfulness;
+		double vividR;
+		double vividG;
+		double vividB;
+		bool hasVividColor;
 	};
 
 
@@ -83,6 +116,250 @@ namespace {
 		color.b = (color.b / count) & 0xff;
 		return color;
 	};
+
+	/*
+	 * Ambient-light color estimator.
+	 *
+	 * A normal RGB mean is cheap, but it makes mixed scenes muddy and lets dark
+	 * pixels hide small highlights. We blend that mean with a channel RMS
+	 * (highlight energy), then gently steer it towards a saturation-weighted
+	 * color. The original zone luminance is retained, so a tiny bright object
+	 * does not turn the entire wall into a full-brightness lamp.
+	 *
+	 * Sampling is capped at roughly 4096 pixels per LED zone. That keeps the
+	 * cost predictable for large capture rectangles while still covering the
+	 * complete area uniformly.
+	 */
+	template<uint8_t offsetR, uint8_t offsetG, uint8_t offsetB>
+	static RegionStats analyzeRegion(
+		const unsigned char* const buffer,
+		const size_t pitch,
+		const QRect& rect) {
+
+		if (buffer == nullptr || rect.width() <= 0 || rect.height() <= 0)
+			return RegionStats{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false};
+
+		constexpr double maxSamples = 4096.0;
+		const double area = static_cast<double>(rect.width()) * rect.height();
+		const int sampleStep = std::max(1, static_cast<int>(std::ceil(std::sqrt(area / maxSamples))));
+
+		uint64_t sumR = 0, sumG = 0, sumB = 0;
+		uint64_t sumR2 = 0, sumG2 = 0, sumB2 = 0;
+		uint64_t vibrantR = 0, vibrantG = 0, vibrantB = 0;
+		uint64_t vibrantWeight = 0;
+		uint64_t chromaSum = 0;
+		uint64_t luminanceSum = 0;
+		uint64_t luminanceSum2 = 0;
+		uint64_t warmSum = 0;
+		uint64_t brightCount = 0;
+		uint64_t darkCount = 0;
+		uint64_t neutralCount = 0;
+		uint64_t count = 0;
+
+		for (int y = rect.top(); y <= rect.bottom(); y += sampleStep) {
+			for (int x = rect.left(); x <= rect.right(); x += sampleStep) {
+				const size_t index = pitch * static_cast<size_t>(y) + bytesPerPixel * static_cast<size_t>(x);
+				const int r = buffer[index + offsetR];
+				const int g = buffer[index + offsetG];
+				const int b = buffer[index + offsetB];
+
+				sumR += r; sumG += g; sumB += b;
+				sumR2 += r * r; sumG2 += g * g; sumB2 += b * b;
+
+				const int maximum = std::max(r, std::max(g, b));
+				const int minimum = std::min(r, std::min(g, b));
+				const int chroma = maximum - minimum;
+				const int luminance = (54 * r + 183 * g + 19 * b) >> 8;
+				const int warm = std::max(0, ((r + g) / 2) - b);
+				const uint64_t weight = static_cast<uint64_t>(chroma) * (luminance + 16);
+
+				vibrantR += weight * r;
+				vibrantG += weight * g;
+				vibrantB += weight * b;
+				vibrantWeight += weight;
+				chromaSum += chroma;
+				luminanceSum += luminance;
+				luminanceSum2 += static_cast<uint64_t>(luminance) * luminance;
+				warmSum += warm;
+				brightCount += luminance >= 190 ? 1 : 0;
+				darkCount += luminance <= 52 ? 1 : 0;
+				neutralCount += chroma <= 26 ? 1 : 0;
+				++count;
+			}
+		}
+
+		if (count == 0)
+			return RegionStats{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false};
+
+		return RegionStats{
+			static_cast<double>(sumR) / count,
+			static_cast<double>(sumG) / count,
+			static_cast<double>(sumB) / count,
+			std::sqrt(static_cast<double>(sumR2) / count),
+			std::sqrt(static_cast<double>(sumG2) / count),
+			std::sqrt(static_cast<double>(sumB2) / count),
+			static_cast<double>(luminanceSum) / count,
+			std::sqrt(std::max(0.0, static_cast<double>(luminanceSum2) / count
+				- std::pow(static_cast<double>(luminanceSum) / count, 2.0))),
+			static_cast<double>(chromaSum) / (count * 255.0),
+			static_cast<double>(warmSum) / (count * 255.0),
+			static_cast<double>(brightCount) / count,
+			static_cast<double>(darkCount) / count,
+			static_cast<double>(neutralCount) / count,
+			static_cast<double>(chromaSum) / (count * 255.0),
+			vibrantWeight > 0 ? static_cast<double>(vibrantR) / vibrantWeight : 0.0,
+			vibrantWeight > 0 ? static_cast<double>(vibrantG) / vibrantWeight : 0.0,
+			vibrantWeight > 0 ? static_cast<double>(vibrantB) / vibrantWeight : 0.0,
+			vibrantWeight > 0
+		};
+	}
+
+	Grab::Calculations::ScenePreset detectScenePresetFromStats(const RegionStats &stats)
+	{
+		if (stats.saturation >= 0.36 && stats.meanLuminance >= 95.0 && stats.neutralRatio <= 0.46)
+			return Grab::Calculations::ScenePresetAnime;
+		if (stats.luminanceContrast >= 42.0 && stats.darkRatio >= 0.24)
+			return Grab::Calculations::ScenePresetGames;
+		if (stats.meanLuminance <= 118.0 && stats.neutralRatio >= 0.28 && stats.brightRatio <= 0.22)
+			return Grab::Calculations::ScenePresetCinema;
+		return Grab::Calculations::ScenePresetNeutral;
+	}
+
+	PerceptualTuning applyScenePresetToTuning(
+		PerceptualTuning tuning,
+		Grab::Calculations::ScenePreset preset,
+		const RegionStats &stats)
+	{
+		switch (preset) {
+		case Grab::Calculations::ScenePresetAnime:
+			tuning.vividScale += 0.18;
+			tuning.vividLimit += 0.12;
+			tuning.highlightKnee += 6.0;
+			tuning.highlightStrength = std::max(0.14, tuning.highlightStrength - 0.05);
+			tuning.warmProtection += 0.04;
+			break;
+		case Grab::Calculations::ScenePresetGames:
+			tuning.rmsWeight += 0.05;
+			tuning.meanWeight = std::max(0.60, tuning.meanWeight - 0.05);
+			tuning.vividScale += 0.08;
+			tuning.highlightKnee -= 8.0;
+			tuning.highlightStrength += 0.03;
+			break;
+		case Grab::Calculations::ScenePresetCinema:
+			tuning.meanWeight += 0.05;
+			tuning.rmsWeight = std::max(0.08, tuning.rmsWeight - 0.05);
+			tuning.vividScale = std::max(0.12, tuning.vividScale - 0.10);
+			tuning.vividLimit = std::max(0.10, tuning.vividLimit - 0.08);
+			tuning.highlightKnee -= 10.0;
+			tuning.highlightStrength += 0.06;
+			tuning.warmProtection += 0.02;
+			break;
+		case Grab::Calculations::ScenePresetAuto:
+		case Grab::Calculations::ScenePresetNeutral:
+		default:
+			break;
+		}
+
+		if (stats.brightRatio > 0.35)
+			tuning.highlightStrength += 0.05;
+		if (stats.darkRatio > 0.45 && stats.saturation < 0.24)
+			tuning.vividScale += 0.06;
+		return tuning;
+	}
+
+	ColorValue finalizePerceptualColor(
+		const RegionStats &stats,
+		PerceptualTuning tuning,
+		bool smartCalibration)
+	{
+		double outR = tuning.meanWeight * stats.meanR + tuning.rmsWeight * stats.rmsR;
+		double outG = tuning.meanWeight * stats.meanG + tuning.rmsWeight * stats.rmsG;
+		double outB = tuning.meanWeight * stats.meanB + tuning.rmsWeight * stats.rmsB;
+
+		if (stats.hasVividColor) {
+			double vividR = stats.vividR;
+			double vividG = stats.vividG;
+			double vividB = stats.vividB;
+
+			const double targetLuminance = (54.0 * outR + 183.0 * outG + 19.0 * outB) / 256.0;
+			const double vividLuminance = (54.0 * vividR + 183.0 * vividG + 19.0 * vividB) / 256.0;
+			if (vividLuminance > 0.5) {
+				const double luminanceScale = std::min(2.3, targetLuminance / vividLuminance);
+				vividR *= luminanceScale;
+				vividG *= luminanceScale;
+				vividB *= luminanceScale;
+			}
+
+			const double vividBlend = std::min(tuning.vividLimit, stats.colorfulness * tuning.vividScale);
+			outR += (vividR - outR) * vividBlend;
+			outG += (vividG - outG) * vividBlend;
+			outB += (vividB - outB) * vividBlend;
+
+			// Secondary hues are the first colors an RGB mean tends to destroy:
+			// magenta drifts to red and cyan drifts to green because green carries
+			// most luminance. When two vivid channels clearly beat the third,
+			// lock a little more strongly to that hue while retaining luminance.
+			const double vividMax = std::max(vividR, std::max(vividG, vividB));
+			const double vividMin = std::min(vividR, std::min(vividG, vividB));
+			const double second = vividR + vividG + vividB - vividMax - vividMin;
+			const double secondaryStrength = second - vividMin;
+			if (vividMax - vividMin > 42.0 && secondaryStrength > 24.0 && stats.colorfulness > 0.16) {
+				const double hueLock = std::min(0.34, 0.12 + secondaryStrength / 420.0);
+				outR += (vividR - outR) * hueLock;
+				outG += (vividG - outG) * hueLock;
+				outB += (vividB - outB) * hueLock;
+			}
+		}
+
+		if (smartCalibration) {
+			const double floodRisk = std::min(1.0,
+				stats.brightRatio * 0.58 +
+				stats.neutralRatio * 0.24 +
+				stats.warmBias * 0.95 +
+				(stats.meanLuminance / 255.0) * 0.28);
+			if (floodRisk > 0.0) {
+				const double luminance = (54.0 * outR + 183.0 * outG + 19.0 * outB) / 256.0;
+				const double clampFactor = 1.0 - 0.24 * floodRisk * std::min(1.0, luminance / 255.0);
+				outR *= clampFactor;
+				outG *= clampFactor;
+				outB *= clampFactor;
+			}
+
+			if (stats.darkRatio > 0.35 && stats.meanLuminance < 92.0) {
+				const double avg = (outR + outG + outB) / 3.0;
+				const double separationBoost = 1.0 + std::min(0.22, 0.08 + stats.luminanceContrast / 180.0);
+				outR = avg + (outR - avg) * separationBoost;
+				outG = avg + (outG - avg) * separationBoost;
+				outB = avg + (outB - avg) * separationBoost;
+			}
+		}
+
+		const double luminance = (54.0 * outR + 183.0 * outG + 19.0 * outB) / 256.0;
+		if (luminance > tuning.highlightKnee) {
+			const double excess = (luminance - tuning.highlightKnee) / std::max(1.0, 255.0 - tuning.highlightKnee);
+			const double clampFactor = 1.0 - tuning.highlightStrength * excess * excess;
+			outR *= clampFactor;
+			outG *= clampFactor;
+			outB *= clampFactor;
+		}
+
+		const double maxChannel = std::max(outR, std::max(outG, outB));
+		const double minChannel = std::min(outR, std::min(outG, outB));
+		const double chroma = std::max(1.0, maxChannel - minChannel);
+		const double warmBias = std::max(0.0, (outR + outG) * 0.5 - outB);
+		const double warmWhiteFactor = std::min(1.0, warmBias / chroma / 3.0);
+		if (warmWhiteFactor > 0.0) {
+			const double warmClamp = 1.0 - tuning.warmProtection * warmWhiteFactor;
+			outR *= warmClamp;
+			outG *= warmClamp;
+		}
+
+		return ColorValue{
+			static_cast<int>(std::max(0.0, std::min(255.0, outR)) + 0.5),
+			static_cast<int>(std::max(0.0, std::min(255.0, outG)) + 0.5),
+			static_cast<int>(std::max(0.0, std::min(255.0, outB)) + 0.5)
+		};
+	}
 
 auto accumulateARGB = accumulateBuffer<PIXEL_FORMAT_ARGB>;
 auto accumulateABGR = accumulateBuffer<PIXEL_FORMAT_ABGR>;
@@ -451,6 +728,23 @@ simdupgrade avxup;
 
 namespace Grab {
 	namespace Calculations {
+		namespace {
+			PerceptualTuning tuningForMode(ColorProcessingMode mode)
+			{
+				switch (mode) {
+				case ColorProcessingModeLegacy:
+					return {1.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0};
+				case ColorProcessingModeAccurate:
+					return {0.88, 0.12, 0.26, 0.18, 172.0, 0.32, 0.10};
+				case ColorProcessingModeCinema:
+					return {0.74, 0.26, 0.52, 0.34, 164.0, 0.24, 0.18};
+				case ColorProcessingModeBalanced:
+				default:
+					return {0.82, 0.18, 0.40, 0.25, 168.0, 0.28, 0.14};
+				}
+			}
+		}
+
 		QRgb calculateAvgColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect) {
 
 			ColorValue color;
@@ -473,6 +767,81 @@ namespace Grab {
 			default:
 				return -1;
 				break;
+			}
+
+			return qRgb(color.r, color.g, color.b);
+		}
+
+		QRgb calculatePerceptualColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect) {
+			return calculateColor(buffer, bufferFormat, pitch, rect, ColorProcessingModeBalanced);
+		}
+
+		QRgb calculateColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect, ColorProcessingMode mode) {
+			ProcessingOptions options;
+			options.colorMode = mode;
+			options.scenePreset = ScenePresetNeutral;
+			options.smartCalibration = true;
+			return calculateColor(buffer, bufferFormat, pitch, rect, options);
+		}
+
+		ScenePreset detectScenePreset(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect)
+		{
+			switch (bufferFormat) {
+			case BufferFormatArgb:
+				return detectScenePresetFromStats(analyzeRegion<PIXEL_FORMAT_ARGB>(buffer, pitch, rect));
+			case BufferFormatAbgr:
+				return detectScenePresetFromStats(analyzeRegion<PIXEL_FORMAT_ABGR>(buffer, pitch, rect));
+			case BufferFormatRgba:
+				return detectScenePresetFromStats(analyzeRegion<PIXEL_FORMAT_RGBA>(buffer, pitch, rect));
+			case BufferFormatBgra:
+				return detectScenePresetFromStats(analyzeRegion<PIXEL_FORMAT_BGRA>(buffer, pitch, rect));
+			default:
+				return ScenePresetNeutral;
+			}
+		}
+
+		QRgb calculateColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect, const ProcessingOptions &options) {
+			ColorValue color;
+			PerceptualTuning tuning = tuningForMode(options.colorMode);
+			switch(bufferFormat) {
+			case BufferFormatArgb:
+				if (options.colorMode == ColorProcessingModeLegacy) {
+					color = accumulateARGB((int*)buffer, pitch / bytesPerPixel, rect);
+				} else {
+					const RegionStats stats = analyzeRegion<PIXEL_FORMAT_ARGB>(buffer, pitch, rect);
+					tuning = applyScenePresetToTuning(tuning, options.scenePreset, stats);
+					color = finalizePerceptualColor(stats, tuning, options.smartCalibration);
+				}
+				break;
+			case BufferFormatAbgr:
+				if (options.colorMode == ColorProcessingModeLegacy) {
+					color = accumulateABGR((int*)buffer, pitch / bytesPerPixel, rect);
+				} else {
+					const RegionStats stats = analyzeRegion<PIXEL_FORMAT_ABGR>(buffer, pitch, rect);
+					tuning = applyScenePresetToTuning(tuning, options.scenePreset, stats);
+					color = finalizePerceptualColor(stats, tuning, options.smartCalibration);
+				}
+				break;
+			case BufferFormatRgba:
+				if (options.colorMode == ColorProcessingModeLegacy) {
+					color = accumulateRGBA((int*)buffer, pitch / bytesPerPixel, rect);
+				} else {
+					const RegionStats stats = analyzeRegion<PIXEL_FORMAT_RGBA>(buffer, pitch, rect);
+					tuning = applyScenePresetToTuning(tuning, options.scenePreset, stats);
+					color = finalizePerceptualColor(stats, tuning, options.smartCalibration);
+				}
+				break;
+			case BufferFormatBgra:
+				if (options.colorMode == ColorProcessingModeLegacy) {
+					color = accumulateBGRA((int*)buffer, pitch / bytesPerPixel, rect);
+				} else {
+					const RegionStats stats = analyzeRegion<PIXEL_FORMAT_BGRA>(buffer, pitch, rect);
+					tuning = applyScenePresetToTuning(tuning, options.scenePreset, stats);
+					color = finalizePerceptualColor(stats, tuning, options.smartCalibration);
+				}
+				break;
+			default:
+				return -1;
 			}
 
 			return qRgb(color.r, color.g, color.b);

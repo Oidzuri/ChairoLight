@@ -37,9 +37,19 @@ SUBDIRS = src
 SUBDIRS += math grab
 src.depends = math grab
 
-win32:SUBDIRS += libraryinjector hooks unhook tests
-contains(QMAKE_TARGET.arch, x86_64) {
-    SUBDIRS += offsetfinder hooks32 unhook32
-    hooks32.file = hooks/hooks32.pro
-    unhook32.file = unhook/unhook32.pro
+win32 {
+    SUBDIRS += libraryinjector unhook tests
+
+    # The legacy injected hook and offset-finder projects contain MSVC/32-bit
+    # pointer assumptions and are not part of the modern capture pipeline.
+    # Keep them available for the original MSVC build, but do not break the
+    # supported Qt 5 / MinGW x64 release build.
+    CONFIG(msvc) {
+        SUBDIRS += hooks
+        contains(QMAKE_TARGET.arch, x86_64) {
+            SUBDIRS += offsetfinder hooks32 unhook32
+            hooks32.file = hooks/hooks32.pro
+            unhook32.file = unhook/unhook32.pro
+        }
+    }
 }

@@ -71,6 +71,11 @@ win32 {
         GRABBERS_SOURCES += DDuplGrabber.cpp
     }
 
+    contains(DEFINES, WGC_GRAB_SUPPORT) {
+        GRABBERS_HEADERS += include/WgcGrabber.hpp
+        GRABBERS_SOURCES += WgcGrabber.cpp
+    }
+
     contains(DEFINES, D3D10_GRAB_SUPPORT) {
         GRABBERS_HEADERS += include/D3D10Grabber.hpp
         GRABBERS_SOURCES += D3D10Grabber.cpp

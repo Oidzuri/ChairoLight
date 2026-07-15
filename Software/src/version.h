@@ -1,4 +1,4 @@
-/*
+﻿/*
  * version.h
  *
  *	Created on: 27.07.2010
@@ -26,21 +26,21 @@
 
 #pragma once
 
-// Current version of Lightpack software
-#define VERSION_STR "5.11.2.31"
+// Current ChairoLight release version
+#define VERSION_STR "0.9.0"
 
 // Resource defines using in Lightpack.rc
-#define VER_FILEVERSION				5,11,2,31
+#define VER_FILEVERSION				0,9,0,0
 #define VER_PRODUCTVERSION			VER_FILEVERSION
 
 #define VER_FILEVERSION_STR			VERSION_STR "\0"
 #define VER_PRODUCTVERSION_STR		VER_FILEVERSION_STR
 
-#define VER_PRODUCTNAME_STR			"Prismatik (unofficial)"
-#define VER_COMPANYNAME_STR			"Patrick Siegler"
-#define VER_FILEDESCRIPTION_STR		"Lightpack Software"
-#define VER_INTERNALNAME_STR		"Prismatik"
-#define VER_LEGALCOPYRIGHT_STR		""
+#define VER_PRODUCTNAME_STR			"ChairoLight"
+#define VER_COMPANYNAME_STR			"Oidzuri"
+#define VER_FILEDESCRIPTION_STR		"ChairoLight perceptual Ambilight"
+#define VER_INTERNALNAME_STR		"ChairoLight"
+#define VER_LEGALCOPYRIGHT_STR		"Copyright (c) 2026 Oidzuri and Prismatik contributors"
 #define VER_ORIGINALFILENAME_STR	"Prismatik.exe"
 
 

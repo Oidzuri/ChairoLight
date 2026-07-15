@@ -34,6 +34,7 @@
 #include "SettingsDefaults.hpp"
 #include "enums.hpp"
 #include "../common/defs.h"
+#include "../grab/include/calculations.hpp"
 #include "debug.h"
 #include "types.h"
 
@@ -168,6 +169,12 @@ public:
 	static void setIsBacklightEnabled(bool isEnabled);
 	static bool isGrabAvgColorsEnabled();
 	static void setGrabAvgColorsEnabled(bool isEnabled);
+	static int getGrabColorProcessingMode();
+	static void setGrabColorProcessingMode(int value);
+	static int getGrabScenePreset();
+	static void setGrabScenePreset(int value);
+	static bool isGrabSmartCalibrationEnabled();
+	static void setGrabSmartCalibrationEnabled(bool value);
 	static int getGrabOverBrighten();
 	static void setGrabOverBrighten(int value);
 	static bool isGrabApplyBlueLightReductionEnabled();
@@ -270,6 +277,8 @@ private:
 	static int getValidDeviceColorDepth(int value);
 	static double getValidDeviceGamma(double value);
 	static int getValidGrabSlowdown(int value);
+	static int getValidGrabColorProcessingMode(int value);
+	static int getValidGrabScenePreset(int value);
 	static int getValidMoodLampSpeed(int value);
 	static int getValidSoundVisualizerLiquidSpeed(int value);
 	static int getValidLuminosityThreshold(int value);
@@ -350,6 +359,9 @@ signals:
 	void grabSlowdownChanged(int value);
 	void backlightEnabledChanged(bool isEnabled);
 	void grabAvgColorsEnabledChanged(bool isEnabled);
+	void grabColorProcessingModeChanged(int value);
+	void grabScenePresetChanged(int value);
+	void grabSmartCalibrationChanged(bool isEnabled);
 	void grabOverBrightenChanged(int value);
 	void grabApplyBlueLightReductionChanged(bool isEnabled);
 	void grabApplyColorTemperatureChanged(bool isEnabled);

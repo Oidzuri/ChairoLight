@@ -2,6 +2,7 @@
 
 LightpackCommandLineParser::LightpackCommandLineParser()
 	: m_noGUIOption(QStringLiteral("nogui"), QStringLiteral("no GUI (console mode)"))
+	, m_startInTrayOption(QStringLiteral("start-in-tray"), QStringLiteral("start with the settings window hidden in the system tray"))
 	, m_wizardOption(QStringLiteral("wizard"), QStringLiteral("run settings wizard first"))
 	, m_backlightOffOption(QStringLiteral("off"), QStringLiteral("send 'off leds' command to the device or running instance"))
 	, m_backlightOnOption(QStringLiteral("on"), QStringLiteral("send 'on leds' command to running instance, if any"))
@@ -17,6 +18,7 @@ LightpackCommandLineParser::LightpackCommandLineParser()
 {
 	m_parser.setApplicationDescription(QStringLiteral("Prismatik of Lightpack"));
 	m_parser.addOption(m_noGUIOption);
+	m_parser.addOption(m_startInTrayOption);
 	m_parser.addOption(m_wizardOption);
 	m_parser.addOption(m_backlightOffOption);
 	m_parser.addOption(m_backlightOnOption);
@@ -32,6 +34,11 @@ LightpackCommandLineParser::LightpackCommandLineParser()
 bool LightpackCommandLineParser::isSetNoGUI() const
 {
 	return m_parser.isSet(m_noGUIOption);
+}
+
+bool LightpackCommandLineParser::isSetStartInTray() const
+{
+	return m_parser.isSet(m_startInTrayOption);
 }
 
 bool LightpackCommandLineParser::isSetWizard() const

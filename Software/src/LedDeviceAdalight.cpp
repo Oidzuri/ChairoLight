@@ -29,6 +29,8 @@
 #include "Settings.hpp"
 #include "debug.h"
 #include "stdio.h"
+#include <algorithm>
+#include <cmath>
 #include <QtSerialPort/QSerialPortInfo>
 
 using namespace SettingsScope;
@@ -82,10 +84,11 @@ void LedDeviceAdalight::setColors(const QList<QRgb> & colors)
 {
 	// Save colors for showing changes of the brightness
 	m_colorsSaved = colors;
+	const QList<QRgb> outputColors = smoothColors(colors);
 
 	resizeColorsBuffer(colors.count());
 
-	applyColorModifications(colors, m_colorsBuffer);
+	applyColorModifications(outputColors, m_colorsBuffer);
 	applyDithering(m_colorsBuffer, 8);
 
 	m_writeBuffer.clear();
@@ -142,9 +145,12 @@ void LedDeviceAdalight::switchOffLeds()
 {
 	int count = m_colorsSaved.count();
 	m_colorsSaved.clear();
+	m_smoothedColors.clear();
 
-	for (int i = 0; i < count; i++)
+	for (int i = 0; i < count; i++) {
 		m_colorsSaved << 0;
+		m_smoothedColors << 0;
+	}
 
 	m_writeBuffer.clear();
 	m_writeBuffer.append(m_writeBufferHeader);
@@ -169,9 +175,46 @@ void LedDeviceAdalight::setColorDepth(int /*value*/)
 	emit commandCompleted(true);
 }
 
-void LedDeviceAdalight::setSmoothSlowdown(int /*value*/)
+void LedDeviceAdalight::setSmoothSlowdown(int value)
 {
+	m_smoothSlowdown = qBound(0, value, 255);
+	if (m_smoothSlowdown == 0)
+		m_smoothedColors = m_colorsSaved;
 	emit commandCompleted(true);
+}
+
+QList<QRgb> LedDeviceAdalight::smoothColors(const QList<QRgb>& colors)
+{
+	if (m_smoothSlowdown <= 0 || m_smoothedColors.count() != colors.count()) {
+		m_smoothedColors = colors;
+		return m_smoothedColors;
+	}
+
+	// Small changes are damped strongly to remove camera/game shimmer, while
+	// large scene cuts react quickly. This avoids the usual trade-off where
+	// smoothing either flickers or feels visibly delayed.
+	const double baseAlpha = 1.0 / (1.0 + m_smoothSlowdown / 18.0);
+
+	for (int i = 0; i < colors.count(); ++i) {
+		const QRgb previous = m_smoothedColors[i];
+		const QRgb target = colors[i];
+
+		auto smoothChannel = [baseAlpha](int from, int to) {
+			const int delta = to - from;
+			if (std::abs(delta) <= 2)
+				return to;
+			const double motion = std::abs(delta) / 255.0;
+			const double alpha = std::min(1.0, baseAlpha + 0.70 * motion);
+			return qBound(0, from + static_cast<int>(std::round(delta * alpha)), 255);
+		};
+
+		m_smoothedColors[i] = qRgb(
+			smoothChannel(qRed(previous), qRed(target)),
+			smoothChannel(qGreen(previous), qGreen(target)),
+			smoothChannel(qBlue(previous), qBlue(target)));
+	}
+
+	return m_smoothedColors;
 }
 
 void LedDeviceAdalight::setColorSequence(const QString& value)

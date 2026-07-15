@@ -29,6 +29,7 @@
 
 #include <QList>
 #include <QRgb>
+#include "calculations.hpp"
 
 class GrabWidget;
 
@@ -97,6 +98,9 @@ public:
 public:
 	QList<GrabWidget *> *grabWidgets;
 	QList<QRgb> *grabResult;
+	Grab::Calculations::ColorProcessingMode colorProcessingMode = Grab::Calculations::ColorProcessingModeBalanced;
+	Grab::Calculations::ScenePreset scenePreset = Grab::Calculations::ScenePresetAuto;
+	bool smartCalibrationEnabled = true;
 
 
 private:

@@ -23,14 +23,28 @@
 *
 */
 
+#ifdef DDUPL_GRAB_SUPPORT
+// MinGW requires the newest DXGI interface declarations before any header
+// instantiates __uuidof() for their base interfaces.
+#include <comdef.h>
+#include <dxgi1_2.h>
+#include <d3d11.h>
+#endif
+
 #include "DDuplGrabber.hpp"
 #include "SystemSession.hpp"
 #include "debug.h"
 
+// Qt maps Q_FUNC_INFO to __PRETTY_FUNCTION__ with MinGW. Unlike MSVC's
+// __FUNCSIG__, that value cannot be concatenated with a printf format string.
+// Keep the existing messages buildable; structured debug lines elsewhere
+// still retain their function context.
+#if defined(__MINGW32__)
+#undef Q_FUNC_INFO
+#define Q_FUNC_INFO ""
+#endif
+
 #ifdef DDUPL_GRAB_SUPPORT
-#include <comdef.h>
-#include <dxgi1_2.h>
-#include <d3d11.h>
 _COM_SMARTPTR_TYPEDEF(IDXGIFactory1, __uuidof(IDXGIFactory1));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutput, __uuidof(IDXGIOutput));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutput1, __uuidof(IDXGIOutput1));

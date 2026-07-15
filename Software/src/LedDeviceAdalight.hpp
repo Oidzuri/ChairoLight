@@ -58,6 +58,7 @@ private:
 	bool writeBuffer(const QByteArray & buff);
 	void resizeColorsBuffer(int buffSize);
 	void reinitBufferHeader(int ledsCount);
+	QList<QRgb> smoothColors(const QList<QRgb>& colors);
 
 private:
 	QSerialPort *m_AdalightDevice;
@@ -66,5 +67,7 @@ private:
 	QByteArray m_writeBuffer;
 	QString m_portName;
 	int m_baudRate;
+	int m_smoothSlowdown{0};
+	QList<QRgb> m_smoothedColors;
 	QTimer* m_lastWillTimer{nullptr};
 };

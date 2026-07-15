@@ -12,7 +12,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string notr="true">Prismatik (unofficial)</string>
+   <string notr="true">ChairoLight</string>
   </property>
   <property name="windowIcon">
    <iconset resource="../res/LightpackResources.qrc">
@@ -284,7 +284,7 @@
            <layout class="QVBoxLayout" name="verticalLayout_8">
             <item>
              <layout class="QGridLayout" name="gridLayout" rowstretch="0,0,0,0,0,0,0,0,0">
-              <item row="3" column="0" colspan="3">
+              <item row="4" column="0" colspan="3">
                <widget class="QCheckBox" name="checkBox_GrabApplyBlueLightReduction">
                 <property name="text">
                  <string>Apply screen color modifications (F.lux, redshift)</string>
@@ -463,6 +463,20 @@
                 </property>
                 <property name="checked">
                  <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="label_GrabColorMode">
+                <property name="text">
+                 <string>Adaptive color mode:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QComboBox" name="comboBox_GrabColorMode">
+                <property name="toolTip">
+                 <string>Choose how Prismatik balances brightness peaks, warm scenes and edge separation.</string>
                 </property>
                </widget>
               </item>
@@ -2174,6 +2188,24 @@ Internally emulates the effects of f.lux, redshift, Night Light, Night Shift...<
              </property>
             </widget>
            </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_ProfileTransfer">
+             <item>
+              <widget class="QPushButton" name="pushButton_ExportProfile">
+               <property name="text">
+                <string>Export settings</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton_ImportProfile">
+               <property name="text">
+                <string>Import settings</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
           </layout>
          </widget>
         </item>
@@ -2762,6 +2794,13 @@ Internally emulates the effects of f.lux, redshift, Night Light, Night Shift...<
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_10">
                <item>
+                <widget class="QRadioButton" name="radioButton_GrabWgc">
+                 <property name="text">
+                  <string>Windows Graphics Capture (Best)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QRadioButton" name="radioButton_GrabWinAPI">
                  <property name="text">
                   <string>WinAPI (Full screen)</string>
@@ -3004,7 +3043,7 @@ Internally emulates the effects of f.lux, redshift, Night Light, Night Shift...<
            </size>
           </property>
           <property name="text">
-           <string>&lt;h2&gt;Prismatik (unofficial fork)&lt;/h2&gt;</string>
+           <string>&lt;h2&gt;ChairoLight&lt;/h2&gt;</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>

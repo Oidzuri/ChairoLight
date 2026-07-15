@@ -93,7 +93,7 @@ void SysTrayIcon::showMessage(const Message msg)
 	switch (msg)
 	{
 		case SysTrayIcon::MessageAnotherInstance:
-			_qsystray->showMessage(tr("Prismatik"), tr("Application already running"));
+			_qsystray->showMessage(tr("ChairoLight"), tr("Application already running"));
 			break;
 		case SysTrayIcon::MessageUpdateFirmware:
 			_qsystray->showMessage(tr("Lightpack firmware update"), tr("Click on this message to open lightpack downloads page"));
@@ -229,7 +229,7 @@ void SysTrayIcon::onCheckUpdate_Finished()
 			if (Settings::isInstallUpdatesEnabled() && !update.pkgUrl.isEmpty() && !update.sigUrl.isEmpty()) {
 				_trayMessage = SysTrayIcon::MessageNoAction;
 				_trayMsgUrl = QUrl("");
-				_qsystray->showMessage("Prismatik Update", "An update is being downloaded and will be applied shortly.");
+				_qsystray->showMessage("ChairoLight Update", "An update is being downloaded and will be applied shortly.");
 				_updatesProcessor.loadUpdate(update);
 				return;
 			}

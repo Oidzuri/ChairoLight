@@ -32,6 +32,34 @@
 
 namespace Grab {
 	namespace Calculations {
+		enum ColorProcessingMode {
+			ColorProcessingModeLegacy = 0,
+			ColorProcessingModeBalanced = 1,
+			ColorProcessingModeAccurate = 2,
+			ColorProcessingModeCinema = 3
+		};
+
+		enum ScenePreset {
+			ScenePresetAuto = 0,
+			ScenePresetNeutral = 1,
+			ScenePresetAnime = 2,
+			ScenePresetGames = 3,
+			ScenePresetCinema = 4
+		};
+
+		struct ProcessingOptions {
+			ColorProcessingMode colorMode = ColorProcessingModeBalanced;
+			ScenePreset scenePreset = ScenePresetAuto;
+			bool smartCalibration = true;
+		};
+
 		QRgb calculateAvgColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect);
+		// A highlight-aware, saturation-preserving color intended for ambient light.
+		// Unlike a plain arithmetic mean it keeps small bright objects visible
+		// without letting a single pixel drive the whole LED zone.
+		QRgb calculatePerceptualColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect);
+		QRgb calculateColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect, ColorProcessingMode mode);
+		QRgb calculateColor(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect, const ProcessingOptions &options);
+		ScenePreset detectScenePreset(const unsigned char * const buffer, BufferFormat bufferFormat, const size_t pitch, const QRect &rect);
 	}
 }

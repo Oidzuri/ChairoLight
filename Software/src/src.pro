@@ -118,6 +118,9 @@ win32 {
 
     #DX9 grab
     LIBS    += -lgdi32 -ld3d9
+    contains(DEFINES, WGC_GRAB_SUPPORT) {
+        LIBS += -ld3d11 -lruntimeobject
+    }
 
     QMAKE_CFLAGS += -O2 -ggdb
     # Windows version using WinAPI + GDI + DirectX for grab colors
@@ -311,6 +314,7 @@ SOURCES += \
     SelectWidget.cpp \
     GrabManager.cpp \
     AbstractLedDevice.cpp \
+    CameraCalibrationDialog.cpp \
     PluginsManager.cpp \
     Plugin.cpp \
     LightpackPluginInterface.cpp \
@@ -367,6 +371,7 @@ HEADERS += \
     SelectWidget.hpp \
     ../common/D3D10GrabberDefs.hpp \
     AbstractLedDevice.hpp \
+    CameraCalibrationDialog.hpp \
     PluginsManager.hpp \
     Plugin.hpp \
     LightpackPluginInterface.hpp \
@@ -396,6 +401,7 @@ contains(DEFINES,SOUNDVIZ_SUPPORT) {
 }
 
 win32 {
+	LIBS += -lavicap32
     SOURCES += LedDeviceAlienFx.cpp \
     WindowsSession.cpp
 

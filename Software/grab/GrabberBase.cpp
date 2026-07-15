@@ -145,6 +145,28 @@ void GrabberBase::grab()
 	if (_lastGrabResult == GrabResultOk) {
 		++grabScreensCount;
 		_context->grabResult->clear();
+		QList<Grab::Calculations::ScenePreset> detectedScreenPresets;
+		detectedScreenPresets.reserve(_screensWithWidgets.size());
+
+		for (int screenIndex = 0; screenIndex < _screensWithWidgets.size(); ++screenIndex) {
+			const GrabbedScreen &grabbedScreen = _screensWithWidgets.at(screenIndex);
+			Grab::Calculations::ScenePreset detectedPreset = _context->scenePreset;
+			if (_context->scenePreset == Grab::Calculations::ScenePresetAuto
+				&& grabbedScreen.imgData
+				&& grabbedScreen.bytesPerRow > 0
+				&& grabbedScreen.imgDataSize >= grabbedScreen.bytesPerRow) {
+				const int width = static_cast<int>(grabbedScreen.bytesPerRow / 4);
+				const int height = static_cast<int>(grabbedScreen.imgDataSize / grabbedScreen.bytesPerRow);
+				if (width > 0 && height > 0) {
+					detectedPreset = Grab::Calculations::detectScenePreset(
+						grabbedScreen.imgData,
+						grabbedScreen.imgFormat,
+						grabbedScreen.bytesPerRow,
+						QRect(0, 0, width, height));
+				}
+			}
+			detectedScreenPresets.append(detectedPreset);
+		}
 
 		for (int i = 0; i < _context->grabWidgets->size(); ++i) {
 			if (!_context->grabWidgets->at(i)->isAreaEnabled()) {
@@ -222,10 +244,22 @@ void GrabberBase::grab()
 
 			const int bytesPerPixel = 4;
 			Q_ASSERT(grabbedScreen->imgData);
-			QRgb avgColor = Grab::Calculations::calculateAvgColor(
+			int grabbedScreenIndex = 0;
+			for (; grabbedScreenIndex < _screensWithWidgets.size(); ++grabbedScreenIndex) {
+				if (&_screensWithWidgets[grabbedScreenIndex] == grabbedScreen)
+					break;
+			}
+			Grab::Calculations::ProcessingOptions processingOptions;
+			processingOptions.colorMode = _context->colorProcessingMode;
+			processingOptions.scenePreset = _context->scenePreset == Grab::Calculations::ScenePresetAuto
+				? detectedScreenPresets.value(grabbedScreenIndex, Grab::Calculations::ScenePresetNeutral)
+				: _context->scenePreset;
+			processingOptions.smartCalibration = _context->smartCalibrationEnabled;
+			QRgb avgColor = Grab::Calculations::calculateColor(
 				grabbedScreen->imgData, grabbedScreen->imgFormat,
 				grabbedScreen->bytesPerRow > 0 ? grabbedScreen->bytesPerRow : grabbedScreen->screenInfo.rect.width() * bytesPerPixel,
-				preparedRect);
+				preparedRect,
+				processingOptions);
 			_context->grabResult->append(avgColor);
 		}
 

@@ -231,7 +231,7 @@ UINT GetD3D9PresentOffset(HWND hWnd){
 		DEBUG_MID_LEVEL << Q_FUNC_INFO << buf;
 #endif
 
-		UINT presentFuncOffset = (presentFuncPtr - reinterpret_cast<UINT>(hD3d9));
+		UINT presentFuncOffset = static_cast<UINT>(presentFuncPtr - reinterpret_cast<uintptr_t>(hD3d9));
 
 #ifndef NO_QT
 		sprintf(buf, "presentFuncOffset=%x", presentFuncOffset);
@@ -311,7 +311,7 @@ UINT GetD3D9SCPresentOffset(HWND hWnd){
 #endif
 
 		void *pD3d9 = reinterpret_cast<void *>(hD3d9);
-		UINT presentFuncOffset = (presentFuncPtr - reinterpret_cast<UINT>(pD3d9));
+		UINT presentFuncOffset = static_cast<UINT>(presentFuncPtr - reinterpret_cast<uintptr_t>(pD3d9));
 
 #ifndef NO_QT
 		sprintf(buf, "presentFuncOffset=%x", presentFuncOffset);
@@ -391,7 +391,7 @@ UINT GetD3D9ResetOffset(HWND hWnd){
 		DEBUG_MID_LEVEL << Q_FUNC_INFO << buf;
 #endif
 
-		UINT resetFuncOffset = (resetFuncPtr - reinterpret_cast<UINT>(hD3d9));
+		UINT resetFuncOffset = static_cast<UINT>(resetFuncPtr - reinterpret_cast<uintptr_t>(hD3d9));
 
 #ifndef NO_QT
 		sprintf(buf, "resetFuncOffset=%x", resetFuncOffset);

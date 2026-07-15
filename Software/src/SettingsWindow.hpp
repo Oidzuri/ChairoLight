@@ -47,6 +47,9 @@ namespace Ui {
 
 class GrabManager; // forward declaration
 class SysTrayIcon;
+class QComboBox;
+class QCheckBox;
+class QLabel;
 
 class SettingsWindow : public QMainWindow {
 	Q_OBJECT
@@ -165,6 +168,9 @@ private slots:
 	void onGrabberChanged();
 	void onGrabSlowdown_valueChanged(int value);
 	void onGrabIsAvgColors_toggled(bool state);
+	void onGrabColorMode_currentIndexChanged(int index);
+	void onGrabScenePreset_currentIndexChanged(int index);
+	void onGrabSmartCalibration_toggled(bool state);
 	void onGrabOverBrighten_valueChanged(int value);
 	void onGrabApplyBlueLightReduction_toggled(bool state);
 	void onGrabApplyColorTemperature_toggled(bool state);
@@ -192,6 +198,8 @@ private slots:
 	void onSetWhiteLedWidgets(bool checked);
 
 	void openCurrentProfile();
+	void exportCurrentProfile();
+	void importProfile();
 
 	void profileRename();
 	void profileTraySwitch(const QString &profileName);
@@ -252,6 +260,10 @@ private:
 	int getLigtpackFirmwareVersionMajor();
 
 	void updateStatusBar();
+	void updateGrabColorModeUi();
+	void updateScenePresetUi();
+	QString importedProfileNameFromFile(const QString &filePath) const;
+	void applyModernLightTheme();
 
 	void initLanguages();
 	void initPixmapCache();
@@ -299,6 +311,15 @@ private:
 	QLabel *labelProfile;
 	QLabel *labelDevice;
 	QLabel *labelFPS;
+	QLabel *m_labelScenePreset;
+	QComboBox *m_comboScenePreset;
+	QCheckBox *m_checkSmartCalibration;
+	QCheckBox *m_checkStartWithWindows;
+	QLabel *m_topDevice;
+	QLabel *m_topPort;
+	QLabel *m_topLeds;
+	QLabel *m_topFps;
+	QLabel *m_topStatus;
 	double m_maxFPS{ 0 };
 	QTimer m_baudrateWarningClearTimer;
 

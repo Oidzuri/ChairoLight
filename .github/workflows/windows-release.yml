@@ -1,0 +1,121 @@
+name: Windows build, tests and portable release
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Qt 5 / MinGW x64
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: Software
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install MSYS2, Qt and MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            zip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-qt5-base
+            mingw-w64-x86_64-qt5-serialport
+            mingw-w64-x86_64-qt5-tools
+
+      - name: Configure release build
+        shell: msys2 {0}
+        run: |
+          printf '%s\n' 'DEFINES += NO_OPENSSL' 'TARGET_ARCH = x86_64' > build-vars.prf
+          qmake-qt5 -r CONFIG+=release Lightpack.pro
+
+      - name: Build application and tests
+        shell: msys2 {0}
+        run: mingw32-make -j2
+
+      - name: Run tests
+        shell: msys2 {0}
+        run: ./tests/bin/LightpackTests.exe -o -,txt
+
+      - name: Sign executable when release secrets are configured
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) {
+            Write-Host 'Signing secrets are not configured; producing an unsigned preview.'
+            exit 0
+          }
+          $certificate = Join-Path $env:RUNNER_TEMP 'chairolight-signing.pfx'
+          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          & signtool sign /f $certificate /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 bin/Prismatik.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Authenticode signing failed.' }
+          Remove-Item -LiteralPath $certificate -Force
+
+      - name: Build privacy-safe portable ZIP
+        shell: msys2 {0}
+        run: >-
+          powershell.exe -NoProfile -ExecutionPolicy Bypass
+          -File ../scripts/release/build-portable.ps1
+          -WindeployQt "$(cygpath -w /mingw64/bin/windeployqt-qt5.exe)"
+
+      - name: Verify release archive contains no personal configuration
+        shell: pwsh
+        working-directory: .
+        run: |
+          $version = (Get-Content Software/RELEASE_VERSION -Raw).Trim()
+          $directory = "artifacts/ChairoLight-$version-portable"
+          if (-not (Test-Path "$directory/main.conf")) { throw 'Portable main.conf marker is missing' }
+          if ((Get-Item "$directory/main.conf").Length -ne 0) { throw 'Portable main.conf contains settings' }
+          if (Test-Path "$directory/Profiles") { throw 'Profiles leaked into artifact' }
+          if (Get-ChildItem $directory -Recurse -File | Select-String -SimpleMatch 'C:\Users\Administrator' -Quiet) {
+            throw 'Developer path leaked into artifact'
+          }
+          $textFiles = Get-ChildItem $directory -Recurse -File -Include *.md,*.txt,*.conf,*.ini
+          if ($textFiles | Select-String -Pattern '\bCOM8\b' -Quiet) { throw 'Developer COM port leaked into artifact' }
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ChairoLight-Windows-portable
+          path: artifacts/ChairoLight-*-portable.zip
+          if-no-files-found: error
+
+  github-release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download portable artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ChairoLight-Windows-portable
+          path: release
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/*.zip --generate-notes --verify-tag

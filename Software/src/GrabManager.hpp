@@ -63,6 +63,9 @@ public slots:
 	void onGrabberTypeChanged(const Grab::GrabberType grabberType);
 	void onGrabSlowdownChanged(int ms);
 	void onGrabAvgColorsEnabledChanged(bool state);
+	void onGrabColorProcessingModeChanged(int value);
+	void onGrabScenePresetChanged(int value);
+	void onGrabSmartCalibrationChanged(bool state);
 	void onGrabOverBrightenChanged(int value);
 	void onGrabApplyBlueLightReductionChanged(bool state);
 	void onGrabApplyColorTemperatureChanged(bool state);
@@ -136,6 +139,9 @@ private:
 	bool m_isGrabbingStarted;
 	bool m_isGrabbingSuspendedDueToDeviceError;
 	int m_overBrighten;
+	Grab::Calculations::ColorProcessingMode m_colorProcessingMode;
+	Grab::Calculations::ScenePreset m_scenePreset;
+	bool m_smartCalibrationEnabled;
 	bool m_isApplyBlueLightReduction;
 	bool m_isApplyColorTemperature;
 	double m_gamma;
