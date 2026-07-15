@@ -46,6 +46,9 @@ jobs:
         shell: msys2 {0}
         run: |
           printf '%s\n' 'DEFINES += NO_OPENSSL' 'TARGET_ARCH = x86_64' > build-vars.prf
+          for translation in res/translations/*.ts; do
+            lrelease-qt5 "$translation" -qm "${translation%.ts}.qm"
+          done
           qmake-qt5 -r CONFIG+=release Lightpack.pro
 
       - name: Build application and tests
