@@ -6,7 +6,7 @@ ChairoLight — приложение для адаптивной фоновой 
 
 > Текущий статус: **0.9.0 preview**. Перед повседневным использованием сохраните копию своего профиля.
 
-![Ambilight в работе](screenshots/ambilight_win.png)
+![Ambilight в работе](<img width="1080" height="850" alt="image" src="https://github.com/user-attachments/assets/cef13ad2-4685-4c0a-b550-0b674ad409e9" />)
 
 ## Что изменено в ChairoLight
 
